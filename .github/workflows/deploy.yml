@@ -1,0 +1,35 @@
+name: Deploy Weather App
+
+on:
+  push:
+    branches:
+      - master  # Deploy only on master branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build Docker image
+        run: docker build -t yourusername/weather-app .
+
+      - name: Push Docker image
+        run: docker push yourusername/weather-app
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            docker stop weather-app || true
+            docker rm weather-app || true
+            docker pull yourusername/weather-app
+            docker run -d --name weather-app -p 80:3000 yourusername/weather-app
